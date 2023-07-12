@@ -58,6 +58,7 @@ if os.system("security import /tmp/HVRHSldap.p12 -k /Library/Keychains/System.ke
     print("\n###########################\n====FATAL KEYCHAIN ERROR! ABORT!====\n###########################\n")
     print("Help: this is typically due to using an Intel p12 file on an M1 mac or vice-versa.")
     exit()
+
 print("\n ====Done! Restarting in 1s==== \n")
 time.sleep(1)
 os.system("reboot")
