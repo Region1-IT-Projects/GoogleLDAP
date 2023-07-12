@@ -576,6 +576,9 @@
 			<key>Denied SASL Methods</key>
 			<array>
 				<string>DIGEST-MD5</string>
+				<string>CRAM-MD5</string>
+				<string>NTLM</string>
+				<string>GSSAPI</string>
 			</array>
 			<key>Template Search Base Suffix</key>
 			<string>dc=region1schools,dc=org</string>
