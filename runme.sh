@@ -4,7 +4,7 @@ echo "\n"
 echo "Downloading Python 3..."
 curl -O https://www.python.org/ftp/python/3.11.4/python-3.11.4-macos11.pkg
 echo "\n Done. Installing Python 3..."
-sudo installer -pkg /Volumes/LDAP/python-3.10.6-macos11.pkg -target /
+sudo installer -pkg /Volumes/LDAP/python-3.11.4-macos11.pkg -target /
 echo "Installing libraries..."
 pip3 install pyobjc-framework-OpenDirectory
 if [ $? -ne 0 ] ; then
