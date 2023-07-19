@@ -14,30 +14,16 @@ def fallback():
     plistPath = ""
     print("Unable to find files!".center(termwidth, '='))
     print("They might just not be in the right place.")
-    print("I'm going to install a python library to let me show you a file chooser dialog. Is that ok?")
-    if input("Proceed? (y/N): ").lower() != 'y':
-        print("Ok, please type in the absolute path to the p12 file manually.")
-        p12Path = input("> ")
-        if !(os.path.exists(p12Path):
-            print("That doesn't exist!")
-            exit()
-        print("Ok, please type in the absolute path to the p12 file manually.")
-        plistPath = input("> ")
-        if !(os.path.exists(plistPath):
-            print("That doesn't exist!")
-            exit()
-        print("Great, trying those paths now...")
-        return p12Path, plistPath
-    if os.system("pip3 install easygui") != 0:
-        print("Uh Oh! Something went wrong!")
-        exit()
-    import easygui
-    print("\nDone. Please select the p12 file...")
+    print("I'm going to prompt you to choose one file, then the other.")
+    from tkinter.filedialog import askopenfilename
+    print("Please select the p12 file".center(termwidth, '-'))
     time.sleep(0.5)
-    p12Path = easygui.fileopenbox()
-    print("Great, now select the plist file...")
-    time.sleep(0.5)
-    plistPath = easygui.fileopenbox()
+    p12Path = askopenfilename()
+    print("processing...")
+    time.sleep(3.5) #sleep to prevent macos file chooser from crashing
+    print("\nGreat, now select the plist file".center(termwidth, '-'))
+    time.sleep(1)
+    plistPath = askopenfilename()
     return p12Path, plistPath
 
 print("Region 1 MacOS LDAP Provisioner".center(termwidth, '='))
@@ -77,7 +63,7 @@ if os.system("dscl -q localhost -append /Search CSPSearchPath /LDAPv3/ldap.googl
 os.system("bash -c 'echo -e \"TLS_IDENTITY\tLDAP Client\" >> /etc/openldap/ldap.conf' ")
 print("...")
 print("LDAP Configuration Complete! Attempting to import certs...".center(termwidth, '-'))
-if os.system("security import /tmp/HVRHSldap.p12 -k /Library/Keychains/System.keychain -f pkcs12 -P indigo -T /System/Library/CoreServices/Applications/Directory\ Utility.app/Contents/MacOS/Directory\ Utility -T /usr/libexec/opendirectoryd -T /usr/bin/dscl"):
+if os.system("security import /tmp/HVRHSldap.p12 -k /Library/Keychains/System.keychain -f pkcs12 -P ***REMOVED*** -T /System/Library/CoreServices/Applications/Directory\ Utility.app/Contents/MacOS/Directory\ Utility -T /usr/libexec/opendirectoryd -T /usr/bin/dscl"):
     print("FATAL KEYCHAIN ERROR! ABORT!".center(termwidth, '='))
     print("Help: this is typically due to using an Intel p12 file on an M1 mac or vice-versa.")
     exit()
