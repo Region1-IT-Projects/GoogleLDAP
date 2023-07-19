@@ -4,7 +4,7 @@ echo "\n"
 echo "Downloading Python 3..."
 curl -O https://www.python.org/ftp/python/3.11.4/python-3.11.4-macos11.pkg
 echo "\n Done. Installing Python 3..."
-sudo installer -pkg /Volumes/LDAP/python-3.11.4-macos11.pkg -target /
+sudo installer -pkg python-3.11.4-macos11.pkg -target /
 echo "Installing libraries..."
 pip3 install pyobjc-framework-OpenDirectory
 if [ $? -ne 0 ] ; then
@@ -13,7 +13,7 @@ if [ $? -ne 0 ] ; then
 fi
 echo "Running python script"
 source ~/.zshrc
-sudo python3 main22.pyobjc
+sudo python3 main23.pyobjc
 if [ $? -eq 127 ] ; then
     echo "looks like the python3 install failed"
     exit 1
