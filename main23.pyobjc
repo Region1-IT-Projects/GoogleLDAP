@@ -7,7 +7,7 @@ import platform
 import os
 import hashlib
 
-termwidth = os.get_terminal_size()[0]
+termwidth = os.get_terminal_size()[0]-1
 
 def fallback():
     p12Path = ""
@@ -17,53 +17,56 @@ def fallback():
     print("I'm going to prompt you to choose one file, then the other.")
     from tkinter.filedialog import askopenfilename
     print("Please select the p12 file".center(termwidth, '-'))
+    print("\n\n")
     time.sleep(0.5)
     p12Path = askopenfilename()
     print("processing...")
     time.sleep(3.5) #sleep to prevent macos file chooser from crashing
-    print("\nGreat, now select the plist file".center(termwidth, '-'))
-    time.sleep(1)
+    print("Great, now select the plist file".center(termwidth, '-'))
+    print("\n\n")
+    time.sleep(2)
     plistPath = askopenfilename()
+    print("Found both files, proceeding...")
+    time.sleep(0.1)
     return p12Path, plistPath
 
 print("Region 1 MacOS LDAP Provisioner".center(termwidth, '='))
-if (os.getcwd() == '/Volumes/LDAP'):
-        print("\n Running from USB, checking files...")
-        if platform.machine() == 'x86_64': 
-            tempP12 = "/Volumes/LDAP/clients/intel-client.p12"
-            print("This is an intel Mac")
-        else: 
-            tempP12 = "/Volumes/LDAP/clients/arm-client.p12"
-            print("This is an ARM Mac")
-        tempPlist = "/Volumes/LDAP/ldap.google.com.plist"
-        if (os.path.exists(tempPlist) and os.path.exists(tempP12)):
-            print("Files Located!")
-        else: tempP12, tempPlist = fallback()
-else: tempP12, tempPlist = fallback()
-shutil.copyfile(tempP12, "/tmp/HVRHSldap.p12")
-shutil.copyfile(tempPlist, "/tmp/ldap.google.com.plist")
+curPath = os.getcwd() + "/" # may seem silly but I like to use absolute pathing everywhere
+print("\n Running from USB, checking files...")
+if platform.machine() == 'x86_64': 
+    p12Path = curPath+"intel-client.p12"
+    print("This is an intel Mac")
+else: 
+    p12Path = curPath+"arm-client.p12"
+    print("This is an ARM Mac")
+plistPath = curPath+"ldap.google.com.plist"
+if (os.path.exists(plistPath) and os.path.exists(p12Path)):
+    print("Files Located!")
+else: p12Path, plistPath = fallback()
 print("File Operations Complete! Configuring LDAP...".center(termwidth, '-'))
 # Reading plist
-GOOGLELDAPCONFIGFILE = open("/tmp/ldap.google.com.plist", "r")
+GOOGLELDAPCONFIGFILE = open(plistPath, "r")
 CONFIG = GOOGLELDAPCONFIGFILE.read().encode()
 GOOGLELDAPCONFIGFILE.close()
 # Write the plist
+print("Writing system configuration...")
 od_session = ODSession.defaultSession()
 od_conf_node, err = ODNode.nodeWithSession_type_error_(od_session, kODNodeTypeConfigure, None)
 request = NSMutableData.dataWithBytes_length_(b'\x00'*32, 32)
 print("...")
 request.appendData_(NSData.dataWithBytes_length_(CONFIG, len(CONFIG)))
 response, err = od_conf_node.customCall_sendData_error_(99991, request, None)
-print("...")
+print("Configuring domain login...")
 # Edit the default search path and append the new node to allow for login
 if os.system("dscl -q localhost -append /Search CSPSearchPath /LDAPv3/ldap.google.com"):
     print("FATAL DSCL ERROR! ABORT!".center(termwidth, '='))
     print("Help: this is typically due to a corrupted plist file.")
     exit()
+print("Configuring TLS...")
 os.system("bash -c 'echo -e \"TLS_IDENTITY\tLDAP Client\" >> /etc/openldap/ldap.conf' ")
 print("...")
 print("LDAP Configuration Complete! Attempting to import certs...".center(termwidth, '-'))
-if os.system("security import /tmp/HVRHSldap.p12 -k /Library/Keychains/System.keychain -f pkcs12 -P ***REMOVED*** -T /System/Library/CoreServices/Applications/Directory\ Utility.app/Contents/MacOS/Directory\ Utility -T /usr/libexec/opendirectoryd -T /usr/bin/dscl"):
+if os.system("security import {} -k /Library/Keychains/System.keychain -f pkcs12 -P ***REMOVED*** -T /System/Library/CoreServices/Applications/Directory\ Utility.app/Contents/MacOS/Directory\ Utility -T /usr/libexec/opendirectoryd -T /usr/bin/dscl".format(p12Path)):
     print("FATAL KEYCHAIN ERROR! ABORT!".center(termwidth, '='))
     print("Help: this is typically due to using an Intel p12 file on an M1 mac or vice-versa.")
     exit()
