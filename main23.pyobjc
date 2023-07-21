@@ -70,12 +70,14 @@ if os.system("security import {} -k /Library/Keychains/System.keychain -f pkcs12
     print("FATAL KEYCHAIN ERROR! ABORT!".center(termwidth, '='))
     print("Help: this is typically due to using an Intel p12 file on an M1 mac or vice-versa.")
     exit()
-
-st = time.time() + 5
+print("Setting login screen preferences...")
+os.system("defaults write /Library/Preferences/com.apple.loginwindow SHOWFULLNAME -bool TRUE")
+os.system('defaults write /Library/Preferences/com.apple.loginwindow LoginwindowText "By logging on to this system you are agreeing to abide by the terms of the Region1 acceptable use policy."')
+st = time.time() + 6
 while True:
     remain = st-time.time()
-    print("Done! Restarting in {}s...".format(round(remain, 0)), end='\r')
+    print("Done! Restarting in {}s... (Press Crtl+C to add FileVault users)".format(round(remain, 0)), end='\r')
     if remain <= 0:
         break
-print("Goodbye")
+print("\n\nGoodbye")
 os.system("reboot")
