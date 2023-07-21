@@ -32,7 +32,7 @@ def fallback():
 
 print("Region 1 MacOS LDAP Provisioner".center(termwidth, '='))
 curPath = os.getcwd() + "/" # may seem silly but I like to use absolute pathing everywhere
-print("\n Running from USB, checking files...")
+print("\n Checking files...")
 if platform.machine() == 'x86_64': 
     p12Path = curPath+"intel-client.p12"
     print("This is an intel Mac")
