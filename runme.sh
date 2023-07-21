@@ -20,5 +20,7 @@ if [ $? -eq 127 ] ; then
 elif [ $? -ne 0 ] ; then
     echo "Sorry, something went wrong with the python script :("
     exit 1
+else 
+    python3 fvHelper.py
 fi
 # we don't need a success condition because if successful, the python script reboots the computer.
