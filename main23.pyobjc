@@ -75,9 +75,15 @@ os.system("defaults write /Library/Preferences/com.apple.loginwindow SHOWFULLNAM
 os.system('defaults write /Library/Preferences/com.apple.loginwindow LoginwindowText "By logging on to this system you are agreeing to abide by the terms of the Region1 acceptable use policy."')
 st = time.time() + 6
 while True:
-    remain = st-time.time()
-    print("Done! Restarting in {}s... (Press Crtl+C to add FileVault users)".format(round(remain, 0)), end='\r')
-    if remain <= 0:
-        break
+    try:
+        remain = st-time.time()
+        print("Done! Restarting in {}s... (Press Crtl+C to add FileVault users)".format(round(remain, 0)), end='\r')
+        if remain <= 0:
+            break
+        time.sleep(0.25)
+    except(KeyboardInterrupt):
+        print("\nEntering FV helper...\n")
+        os.system("python3 fvHelper.py")
+        st = time.time() + 5
 print("\n\nGoodbye")
 os.system("reboot")
