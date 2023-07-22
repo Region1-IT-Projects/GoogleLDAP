@@ -9,6 +9,8 @@ import hashlib
 
 termwidth = os.get_terminal_size()[0]-1
 
+print("Region 1 MacOS LDAP Provisioner".center(termwidth, '='))
+
 def fallback():
     p12Path = ""
     plistPath = ""
@@ -30,19 +32,89 @@ def fallback():
     time.sleep(0.1)
     return p12Path, plistPath
 
-print("Region 1 MacOS LDAP Provisioner".center(termwidth, '='))
-curPath = os.getcwd() + "/" # may seem silly but I like to use absolute pathing everywhere
-print("\n Checking files...")
-if platform.machine() == 'x86_64': 
-    p12Path = curPath+"intel-client.p12"
-    print("This is an intel Mac")
-else: 
-    p12Path = curPath+"arm-client.p12"
-    print("This is an ARM Mac")
-plistPath = curPath+"ldap.google.com.plist"
-if (os.path.exists(plistPath) and os.path.exists(p12Path)):
-    print("Files Located!")
-else: p12Path, plistPath = fallback()
+def DomainChooser():
+    curPath = os.getcwd() + "/" # may seem silly but I like to use absolute pathing everywhere
+    pathContent = os.scandir(curpath)
+    dirs = []
+    for i in pathContent:
+        if i.is_dir() and i.name[0] != '.':
+            dirs.append(i.name)
+    match len(dirs):
+        case 0:
+            print("CRITICAL: Cannot find any domain information! Entering fallback...")
+            
+        case 1:
+            print("Found 1 domain: '{}.' Moving on.")
+            curPath += dirs[0]
+        case _:
+            print("Found {} Domains:".format(len(dirs)))
+            for i in range(0,len(dirs)):
+                print("{}) {}".format(i+1, dirs[i]))
+            try:
+                choice = int(input("Select an option [1]: "))-1
+            except(ValueError):
+                print("That wasn't a number!")
+                return DomainChooser()
+            curPath += dirs[choice]
+        curPath += "/"
+
+def readHashFile(curPath):
+    hashPath = curPath+"hashes"
+    try:
+        h = open(hashPath, 'r')
+    except(FileNotFoundError):
+        return False
+    hashes = h.readlines()
+    h.close()
+    hDict = {}
+    for i in hashes:
+        dat = i.split('\t')
+        hDict[dat[0]]=dat[1]
+    return hDict
+
+def hashFail():
+    os.system(clear)
+    print("#".center(termwidth,'#'))
+    print("Failed To Validate Files!".center(termwidth, '='))
+    print("#".center(termwidth,'#'))
+    print("\n One or more files does not match expected hash. Please re-download all files for this script and try again.")
+    print("Proceeding with these files is not reccomended and may require an OS reinstall to fix.")
+    if input("Proceed anyway? (y/N)").casefold() != 'y':
+        print("aborting.\n")
+        exit()
+    print("As you wish.")
+    return
+
+def fileFinder():
+    curPath = DomainChooser()
+    if platform.machine() == 'x86_64': 
+        p12Path = curPath+"intel-client.p12"
+        print("This is an intel Mac")
+    else: 
+        p12Path = curPath+"arm-client.p12"
+        print("This is an ARM Mac")
+        
+    plistPath = curPath+"ldap.google.com.plist"
+
+    print("\n Checking files...")
+    if (os.path.exists(plistPath) and os.path.exists(p12Path)):
+        print("Files exits.")
+    else:
+        return fallback()
+    hashes = readHashFile()
+    if len(hashes) == 0:
+        hashFail()
+        return p12Path, plistPath
+    isOk = True
+    for i in [plistPath, p12Path]:
+        isOk &= (hashlib.md5(open(i,'rb').read()).hexdigest() == hashes[i.split('/')[-1]])
+    if not isOk:
+        hashFail()
+    else:
+        print("Files Found and Validated!")
+    return p12Path, plistPath
+    
+p12Path, plistPath = fileFinder()
 print("File Operations Complete! Configuring LDAP...".center(termwidth, '-'))
 # Reading plist
 GOOGLELDAPCONFIGFILE = open(plistPath, "r")
