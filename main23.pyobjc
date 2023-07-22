@@ -7,6 +7,7 @@ import platform
 import os
 import hashlib
 
+doDebug = False
 termwidth = os.get_terminal_size()[0]-1
 
 print("Region 1 MacOS LDAP Provisioner".center(termwidth, '='))
@@ -34,7 +35,7 @@ def fallback():
 
 def DomainChooser():
     curPath = os.getcwd() + "/" # may seem silly but I like to use absolute pathing everywhere
-    pathContent = os.scandir(curpath)
+    pathContent = os.scandir(curPath)
     dirs = []
     for i in pathContent:
         if i.is_dir() and i.name[0] != '.':
@@ -55,8 +56,12 @@ def DomainChooser():
             except(ValueError):
                 print("That wasn't a number!")
                 return DomainChooser()
-            curPath += dirs[choice]
-        curPath += "/"
+            try:
+                curPath += dirs[choice]
+            except(IndexError):
+                print("That wasn't and option.")
+                return DomainChooser()
+    return curPath + "/"
 
 def readHashFile(curPath):
     hashPath = curPath+"hashes"
@@ -68,12 +73,14 @@ def readHashFile(curPath):
     h.close()
     hDict = {}
     for i in hashes:
-        dat = i.split('\t')
+        dat = i.split()
         hDict[dat[0]]=dat[1]
+    if doDebug: print("Hashes:",hDict)
     return hDict
 
 def hashFail():
-    os.system(clear)
+    if not doDebug:
+        os.system("clear")
     print("#".center(termwidth,'#'))
     print("Failed To Validate Files!".center(termwidth, '='))
     print("#".center(termwidth,'#'))
@@ -101,13 +108,14 @@ def fileFinder():
         print("Files exits.")
     else:
         return fallback()
-    hashes = readHashFile()
+    hashes = readHashFile(curPath)
     if len(hashes) == 0:
         hashFail()
         return p12Path, plistPath
     isOk = True
     for i in [plistPath, p12Path]:
         isOk &= (hashlib.md5(open(i,'rb').read()).hexdigest() == hashes[i.split('/')[-1]])
+        if doDebug: print("{} status: {}".format(i,isOk))
     if not isOk:
         hashFail()
     else:
