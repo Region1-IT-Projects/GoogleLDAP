@@ -358,8 +358,13 @@ if [[ -d "$PAYLOAD/Python.framework" ]]; then
 fi
 [[ -d "$framework_dir" ]] || die "expected a bundled framework at $framework_dir"
 
-bundled_python="$framework_dir/Versions/Current/bin/python3"
-[[ -x "$bundled_python" ]] || die "bundled interpreter not executable: $bundled_python"
+bundled_python_symlink="$framework_dir/Versions/Current/bin/python3"
+[[ -x "$bundled_python_symlink" ]] || die "bundled interpreter not executable: $bundled_python_symlink"
+# Resolve through Versions/Current and bin/python3 (both symlinks) to the real binary --
+# CPython has had exec_prefix/library-path resolution regressions specific to symlinked
+# invocation (relocatable-python issue #31), and install.sh does the same resolution for
+# the same reason, so the smoke test below exercises the exact path install.sh will use.
+bundled_python="${bundled_python_symlink:A}"
 
 # Files that arrived via a browser/curl carry com.apple.quarantine, which would make the
 # interpreter refuse to run on a target Mac.
