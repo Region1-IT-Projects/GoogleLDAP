@@ -53,7 +53,7 @@
 						<string>automount</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 			<key>dsRecTypeStandard:AutomountMap</key>
@@ -90,7 +90,7 @@
 						<string>automountMap</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 			<key>dsRecTypeStandard:CertificateAuthorities</key>
@@ -142,7 +142,7 @@
 						<string>certificationAuthority</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 			<key>dsRecTypeStandard:Groups</key>
@@ -189,7 +189,7 @@
 						<string>posixGroup</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 			<key>dsRecTypeStandard:Mounts</key>
@@ -246,7 +246,7 @@
 						<string>mount</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 			<key>dsRecTypeStandard:OrganizationalUnit</key>
@@ -328,7 +328,7 @@
 						<string>organizationalUnit</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 			<key>dsRecTypeStandard:People</key>
@@ -475,7 +475,7 @@
 						<string>inetOrgPerson</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 			<key>dsRecTypeStandard:Users</key>
@@ -559,7 +559,7 @@
 						<string>shadowAccount</string>
 					</array>
 					<key>Search Base</key>
-					<string>dc=region1schools,dc=org</string>
+					<string>__SEARCH_BASE__</string>
 				</dict>
 			</dict>
 		</dict>
@@ -581,7 +581,7 @@
 				<string>GSSAPI</string>
 			</array>
 			<key>Template Search Base Suffix</key>
-			<string>dc=region1schools,dc=org</string>
+			<string>__SEARCH_BASE__</string>
 		</dict>
 	</dict>
 	<key>node name</key>
@@ -613,6 +613,6 @@
 	<key>trusttype</key>
 	<string>anonymous</string>
 	<key>uuid</key>
-	<string>7E98514E-8759-4475-BF67-E2A1708413B3</string>
+	<string>__CONFIG_UUID__</string>
 </dict>
 </plist>
