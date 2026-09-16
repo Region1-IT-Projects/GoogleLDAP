@@ -6,6 +6,8 @@ import time
 import platform
 import os
 import hashlib
+import getpass
+import subprocess
 
 doDebug = False
 termwidth = os.get_terminal_size()[0]-1
@@ -146,7 +148,17 @@ print("Configuring TLS...")
 os.system("bash -c 'echo -e \"TLS_IDENTITY\tLDAP Client\" >> /etc/openldap/ldap.conf' ")
 print("...")
 print("LDAP Configuration Complete! Attempting to import certs...".center(termwidth, '-'))
-if os.system("security import {} -k /Library/Keychains/System.keychain -f pkcs12 -P ***REMOVED*** -T /System/Library/CoreServices/Applications/Directory\ Utility.app/Contents/MacOS/Directory\ Utility -T /usr/libexec/opendirectoryd -T /usr/bin/dscl".format(p12Path)):
+p12Password = getpass.getpass("Enter the p12 export password: ")
+importResult = subprocess.run([
+    "security", "import", p12Path,
+    "-k", "/Library/Keychains/System.keychain",
+    "-f", "pkcs12",
+    "-P", p12Password,
+    "-T", "/System/Library/CoreServices/Applications/Directory Utility.app/Contents/MacOS/Directory Utility",
+    "-T", "/usr/libexec/opendirectoryd",
+    "-T", "/usr/bin/dscl",
+])
+if importResult.returncode:
     print("FATAL KEYCHAIN ERROR! ABORT!".center(termwidth, '='))
     print("Help: this is typically due to using an Intel p12 file on an M1 mac or vice-versa.")
     exit()
