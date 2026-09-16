@@ -30,10 +30,10 @@ REBOOT_DEFAULT="true"
 SKIP_HANDSHAKE="false"
 ASSUME_YES="false"
 
-die() { print -u2 -- "ERROR: $*"; exit 1; }
-warn() { print -u2 -- "WARNING: $*"; }
-info() { print -- "$*"; }
-step() { print -- ""; print -- "==> $*"; }
+die() { print -ru2 -- "ERROR: $*"; exit 1; }
+warn() { print -ru2 -- "WARNING: $*"; }
+info() { print -r -- "$*"; }
+step() { print -r -- ""; print -r -- "==> $*"; }
 
 usage() {
     cat <<'EOF'
@@ -70,6 +70,30 @@ while (( $# )); do
         *) die "unknown option: $1 (try --help)" ;;
     esac
 done
+
+json_escape() {
+    # config.json is hand-built via heredoc; escape values that come from admin input or a
+    # certificate's CN so a stray quote/backslash can't produce invalid or injected JSON.
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\t'/\\t}"
+    print -r -- "$s"
+}
+
+expand_leading_tilde() {
+    # ${~var} only enables glob-pattern interpretation, not tilde expansion, and only
+    # outside quotes -- which makes it unsafe for arbitrary paths (glob metacharacters like
+    # [, ], (, ) would be filename-generated). Handle only the common "~" and "~/..." forms
+    # for the current user, as plain string manipulation.
+    local path="$1"
+    case "$path" in
+        "~") print -r -- "$HOME" ;;
+        "~/"*) print -r -- "$HOME/${path#\~/}" ;;
+        *) print -r -- "$path" ;;
+    esac
+}
 
 prompt_for() {
     # prompt_for <varname> <prompt text> [default]
@@ -113,9 +137,9 @@ prompt_for CERT_PATH "Path to the Google-issued .crt"
 prompt_for KEY_PATH "Path to the Google-issued .key"
 prompt_for OUT_DIR "Output directory for the payload" "$PWD/payload"
 
-CERT_PATH="${~CERT_PATH}"
-KEY_PATH="${~KEY_PATH}"
-OUT_DIR="${~OUT_DIR}"
+CERT_PATH=$(expand_leading_tilde "$CERT_PATH")
+KEY_PATH=$(expand_leading_tilde "$KEY_PATH")
+OUT_DIR=$(expand_leading_tilde "$OUT_DIR")
 
 [[ -f "$CERT_PATH" ]] || die "certificate not found: $CERT_PATH"
 [[ -f "$KEY_PATH" ]] || die "key not found: $KEY_PATH"
@@ -162,7 +186,7 @@ if [[ "$SKIP_HANDSHAKE" == "true" ]]; then
     warn "skipping mTLS handshake (--skip-handshake); the credential is unverified"
 else
     handshake_log=$(mktemp -t googleldap-handshake)
-    if print -- "" | openssl s_client -connect "${LDAP_HOST}:${LDAP_PORT}" \
+    if print -r -- "" | openssl s_client -connect "${LDAP_HOST}:${LDAP_PORT}" \
         -cert "$CERT_PATH" -key "$KEY_PATH" -servername "$LDAP_HOST" \
         >"$handshake_log" 2>&1; then
         if grep -q "Verify return code: 0 (ok)" "$handshake_log"; then
@@ -172,7 +196,7 @@ else
             grep -E "Verify return code|verify error" "$handshake_log" | sed 's/^/    /'
         fi
     else
-        print -u2 -- "--- handshake output ---"
+        print -ru2 -- "--- handshake output ---"
         tail -n 20 "$handshake_log" >&2
         rm -f "$handshake_log"
         die "could not complete an mTLS handshake with ${LDAP_HOST}:${LDAP_PORT}.
@@ -185,7 +209,7 @@ fi
 
 # ---------------------------------------------------------------- build payload
 
-payload_name="GoogleLDAP-$(print -- "$SEARCH_BASE" | sed -E 's/dc=//; s/,dc=.*//')"
+payload_name="GoogleLDAP-$(print -r -- "$SEARCH_BASE" | sed -E 's/dc=//; s/,dc=.*//')"
 PAYLOAD="$OUT_DIR/$payload_name"
 
 step "Building payload at $PAYLOAD"
@@ -281,22 +305,22 @@ chmod 755 "$PAYLOAD/install.sh"
 
 cat > "$PAYLOAD/config.json" <<EOF
 {
-  "search_base": "$SEARCH_BASE",
-  "node_name": "$NODE_NAME",
-  "tls_identity": "$TLS_IDENTITY",
-  "login_banner": "$BANNER",
+  "search_base": "$(json_escape "$SEARCH_BASE")",
+  "node_name": "$(json_escape "$NODE_NAME")",
+  "tls_identity": "$(json_escape "$TLS_IDENTITY")",
+  "login_banner": "$(json_escape "$BANNER")",
   "reboot": $REBOOT_DEFAULT,
   "min_macos_major": $MIN_MACOS_MAJOR,
-  "cert_serial": "$cert_serial",
-  "cert_not_after": "$cert_not_after",
-  "config_uuid": "$config_uuid",
+  "cert_serial": "$(json_escape "$cert_serial")",
+  "cert_not_after": "$(json_escape "$cert_not_after")",
+  "config_uuid": "$(json_escape "$config_uuid")",
   "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
 plutil -lint "$PAYLOAD/config.json" >/dev/null || die "generated config.json is not valid JSON"
 
 umask 077
-print -- "P12_PASSWORD=$P12_PASSWORD" > "$PAYLOAD/.env"
+print -r -- "P12_PASSWORD=$P12_PASSWORD" > "$PAYLOAD/.env"
 chmod 600 "$PAYLOAD/.env"
 umask 022
 info "Wrote config.json and .env (.env is mode 600)"
