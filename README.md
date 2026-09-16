@@ -19,8 +19,9 @@ self-contained payload directory. You copy that directory to a flash drive. A te
 ## Requirements
 
 - **Targets:** Apple Silicon only, macOS 15 or newer. Intel is not supported.
-- **Admin machine:** macOS, with Xcode Command Line Tools (for `git`) and network access on the
-  first build (it downloads a Python framework, then caches it).
+- **Admin machine:** macOS, with network access on the first build (it downloads a Python
+  framework from python.org). The tool that builds it is vendored in this repo, so no `git` or
+  other extra tooling is required beyond what macOS ships.
 - **Google Workspace:** Enterprise, Education, or Cloud Identity Premium — Secure LDAP is not
   available on other tiers.
 
@@ -168,6 +169,8 @@ src/install.sh                   Launcher: runs install.py under the bundled int
 src/install.py                   The provisioning logic
 src/ldap.google.com.plist.in     LDAP config template (search base + UUID substituted at build)
 src/fvhelper.py                  Mobile account / FileVault helper
+vendor/relocatable-python/       Vendored build tool for the bundled Python framework
+                                  (see VENDORED.md there for provenance/update instructions)
 ```
 
 The payload that `deploy.sh` produces also contains `config.json` (non-secret settings), `.env`
