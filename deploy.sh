@@ -8,6 +8,7 @@ set -o pipefail
 readonly SCRIPT_DIR="${0:A:h}"
 readonly SRC_DIR="$SCRIPT_DIR/src"
 readonly TEMPLATE="$SRC_DIR/ldap.google.com.plist.in"
+readonly RELOCATABLE_PYTHON_DIR="$SCRIPT_DIR/vendor/relocatable-python"
 
 readonly DEFAULT_SEARCH_BASE="dc=region1schools,dc=org"
 readonly LDAP_HOST="ldap.google.com"
@@ -18,7 +19,6 @@ readonly DEFAULT_BANNER="By logging on to this system you are agreeing to abide 
 
 # Python bundled into the payload so target Macs need no runtime installed.
 readonly PYTHON_VERSION="3.12.8"
-readonly RELOCATABLE_PYTHON_REPO="https://github.com/gregneagle/relocatable-python"
 readonly CACHE_DIR="$HOME/.cache/googleldap-deploy"
 
 CERT_PATH=""
@@ -122,8 +122,10 @@ step "Preflight"
 
 [[ "$(uname -s)" == "Darwin" ]] || die "deploy.sh must run on macOS (it uses the 'security' tool to self-test the p12)"
 [[ -f "$TEMPLATE" ]] || die "missing plist template: $TEMPLATE"
+[[ -x "$RELOCATABLE_PYTHON_DIR/make_relocatable_python_framework.py" ]] \
+    || die "missing vendored relocatable-python: $RELOCATABLE_PYTHON_DIR"
 
-for tool in openssl security uuidgen shasum curl git plutil xattr sw_vers; do
+for tool in openssl security uuidgen shasum curl plutil xattr sw_vers; do
     command -v "$tool" >/dev/null 2>&1 || die "required tool not found: $tool"
 done
 
@@ -330,14 +332,6 @@ info "Wrote config.json and .env (.env is mode 600)"
 step "Bundling Python + pyobjc"
 
 mkdir -p "$CACHE_DIR"
-repo_dir="$CACHE_DIR/relocatable-python"
-if [[ -d "$repo_dir/.git" ]]; then
-    info "Using cached relocatable-python checkout."
-else
-    info "Fetching relocatable-python..."
-    git clone --depth 1 "$RELOCATABLE_PYTHON_REPO" "$repo_dir" >/dev/null 2>&1 \
-        || die "could not clone $RELOCATABLE_PYTHON_REPO (network required on first build)"
-fi
 
 requirements="$CACHE_DIR/requirements.txt"
 cat > "$requirements" <<'EOF'
@@ -348,7 +342,10 @@ EOF
 
 framework_dir="$PAYLOAD/python"
 info "Building Python $PYTHON_VERSION framework (this takes a few minutes)..."
-( cd "$repo_dir" && ./make_relocatable_python_framework.py \
+# relocatable-python is vendored under vendor/ rather than git-cloned, so this build needs no
+# git on the admin machine and is pinned to a known-good version -- see vendor/.../VENDORED.md.
+# It still needs network on first build to download the actual python.org installer package.
+( cd "$RELOCATABLE_PYTHON_DIR" && ./make_relocatable_python_framework.py \
     --python-version "$PYTHON_VERSION" \
     --os-version 11 \
     --pip-requirements "$requirements" \
