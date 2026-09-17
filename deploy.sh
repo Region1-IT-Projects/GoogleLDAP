@@ -30,10 +30,37 @@ REBOOT_DEFAULT="true"
 SKIP_HANDSHAKE="false"
 ASSUME_YES="false"
 
-die() { print -ru2 -- "ERROR: $*"; exit 1; }
+# Failure-cleanup state, owned by the single EXIT trap installed once $PAYLOAD exists.
+PAYLOAD=""
+PAYLOAD_INCOMPLETE="false"
+TEST_KEYCHAIN_LIVE="false"
+
+# A step banner means "starting this step", not "the build is healthy so far" -- a run that
+# dies partway still prints every banner up to the failure, which is how a broken payload got
+# carried to a lab Mac. Numbering the steps and bracketing the two terminal outcomes with
+# BUILD FAILED / BUILD SUCCEEDED banners makes an aborted run unmistakable.
+readonly TOTAL_STEPS=12
+step_num=0
+
+die() {
+    print -ru2 -- ""
+    print -ru2 -- "==> BUILD FAILED (step ${step_num}/${TOTAL_STEPS})"
+    print -ru2 -- "ERROR: $*"
+    exit 1
+}
 warn() { print -ru2 -- "WARNING: $*"; }
 info() { print -r -- "$*"; }
-step() { print -r -- ""; print -r -- "==> $*"; }
+step() { (( ++step_num )); print -r -- ""; print -r -- "==> [$step_num/$TOTAL_STEPS] $*"; }
+
+on_exit() {
+    local rc=$?
+    [[ "$TEST_KEYCHAIN_LIVE" == "true" ]] && cleanup_test_keychain
+    if (( rc != 0 )) && [[ "$PAYLOAD_INCOMPLETE" == "true" && -n "$PAYLOAD" ]]; then
+        print -ru2 -- "Removing the incomplete payload at $PAYLOAD"
+        rm -rf "$PAYLOAD"
+    fi
+    return $rc
+}
 
 usage() {
     cat <<'EOF'
@@ -227,6 +254,16 @@ fi
 
 mkdir -p "$PAYLOAD/assets" "$PAYLOAD/logs" || die "could not create $PAYLOAD"
 
+# From here until the last step the payload exists but cannot provision anything, so any
+# non-zero exit deletes it. Leaving a half-built payload behind is worse than leaving nothing:
+# it still holds an install.sh, a config.json and a client.p12, so it looks deployable, and the
+# missing pieces only surface on a target Mac. Routing INT/TERM through exit means they run the
+# EXIT trap too, with a non-zero status.
+PAYLOAD_INCOMPLETE="true"
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 # ---------------------------------------------------------------- p12
 
 step "Generating client.p12"
@@ -259,8 +296,11 @@ test_kc_pass=$(openssl rand -base64 18 | tr -d '\n')
 cleanup_test_keychain() {
     security delete-keychain "$test_keychain" >/dev/null 2>&1 || true
     rm -f "$test_keychain" >/dev/null 2>&1 || true
+    TEST_KEYCHAIN_LIVE="false"
 }
-trap cleanup_test_keychain EXIT INT TERM
+# Armed before create-keychain so a half-created keychain is still reclaimed. The EXIT trap
+# installed above owns the actual cleanup now -- it must stay in place for the payload.
+TEST_KEYCHAIN_LIVE="true"
 
 security create-keychain -p "$test_kc_pass" "$test_keychain" \
     || die "could not create a temporary keychain for the self-test"
@@ -279,7 +319,6 @@ else
     warn "p12 imported but no identity named '$TLS_IDENTITY' was listed; check the certificate CN."
 fi
 cleanup_test_keychain
-trap - EXIT INT TERM
 
 # ---------------------------------------------------------------- plist
 
@@ -319,7 +358,11 @@ cat > "$PAYLOAD/config.json" <<EOF
   "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
-plutil -lint "$PAYLOAD/config.json" >/dev/null || die "generated config.json is not valid JSON"
+# NOT plutil -lint: that path only runs the CoreFoundation property-list parser, which
+# rejects any JSON file with "Unexpected character { at line 1". -convert is the plutil mode
+# that accepts JSON input, so parsing to /dev/null is a real syntax check.
+plutil -convert xml1 -o /dev/null "$PAYLOAD/config.json" \
+    || die "generated config.json is not valid JSON"
 
 umask 077
 print -r -- "P12_PASSWORD=$P12_PASSWORD" > "$PAYLOAD/.env"
@@ -388,9 +431,14 @@ info "Hashed $(wc -l < "$manifest" | tr -d ' ') files."
 
 # ---------------------------------------------------------------- summary
 
+# The payload is complete and verified; this is the only route to the success banner, so
+# release it from the EXIT trap.
+PAYLOAD_INCOMPLETE="false"
+
 cat <<EOF
 
 ================================================================
+==> BUILD SUCCEEDED
 Payload ready: $PAYLOAD
 
   Search base   : $SEARCH_BASE
@@ -412,5 +460,7 @@ Reminders
   * To revoke access, DELETE the certificate in Google Admin (Apps > LDAP > your
     client > Authentication). Turning Service Status off can take up to 24 hours.
   * Rebuild the payload before $cert_not_after.
+  * A run that does not end at this banner has built nothing -- deploy.sh deletes the
+    partial payload on failure. Never ship a directory from a run you did not see finish.
 ================================================================
 EOF
